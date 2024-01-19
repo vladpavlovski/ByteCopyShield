@@ -55,7 +55,7 @@ ByteCopyShield is a simple yet powerful shell script designed to facilitate easy
 
 ## Contributors
 
-- Vlad Pavlovski ([@vladpavlovski]
+- @vladpavlovski
 
 Feel free to contribute by submitting bug reports, feature requests, or pull requests.
 
