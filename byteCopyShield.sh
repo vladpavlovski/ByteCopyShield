@@ -1,5 +1,51 @@
 #!/bin/sh
 
+install_tool() {
+    local tool_name="$1"
+
+    # Determine the appropriate package manager and installation command based on the operating system
+    local package_manager=""
+    local install_command=""
+
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS (Homebrew)
+        package_manager="brew"
+        install_command="$package_manager install $tool_name"
+    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        # Linux (apt for Debian/Ubuntu, yum for Red Hat/Fedora, etc.)
+        if command -v apt &> /dev/null; then
+            package_manager="apt"
+        elif command -v yum &> /dev/null; then
+            package_manager="yum"
+        else
+            echo "Unsupported package manager. Please install $tool_name manually."
+            exit 1
+        fi
+        install_command="sudo $package_manager install -y $tool_name"
+    else
+        echo "Unsupported operating system. Please install $tool_name manually."
+        exit 1
+    fi
+
+    # Check if the tool is installed, and if not, install it
+    if ! command -v "$tool_name" &> /dev/null; then
+        echo "$tool_name not found."
+
+        # Install the tool using the determined package manager and command
+        if command -v "$package_manager" &> /dev/null; then
+            echo "Installing $tool_name with $package_manager..."
+            eval "$install_command"
+        else
+            echo "$package_manager not found. Please install it and run the script again."
+            exit 1
+        fi
+    fi
+}
+
+install_tool "zip"
+install_tool "gum"
+
+
 welcome_and_confirm_backup() {
     local YES="Yes. Let's go!"
     local NO="No. Next time."
