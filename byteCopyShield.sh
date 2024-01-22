@@ -1,44 +1,62 @@
-#!/bin/sh
+#!/bin/bash
 
 install_tool() {
     local tool_name="$1"
 
-    # Determine the appropriate package manager and installation command based on the operating system
-    local package_manager=""
+    # Determine the appropriate installation command based on the platform
     local install_command=""
 
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS (Homebrew)
-        package_manager="brew"
-        install_command="$package_manager install $tool_name"
-    elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        # Linux (apt for Debian/Ubuntu, yum for Red Hat/Fedora, etc.)
-        if command -v apt &> /dev/null; then
-            package_manager="apt"
-        elif command -v yum &> /dev/null; then
-            package_manager="yum"
-        else
-            echo "Unsupported package manager. Please install $tool_name manually."
+    case "$(uname)" in
+        Darwin)
+            # macOS (Homebrew)
+            install_command="brew install $tool_name"
+            ;;
+        Linux)
+            # Linux (Various package managers)
+            if command -v pacman &> /dev/null; then
+                # Arch Linux (btw)
+                install_command="sudo pacman -S $tool_name"
+            elif command -v nix-env &> /dev/null; then
+                # Nix
+                install_command="nix-env -iA nixpkgs.$tool_name"
+                # Alternatively, with flakes
+                # install_command="nix run 'github:charmbracelet/$tool_name' -- --help"
+            elif command -v apt &> /dev/null; then
+                # Debian/Ubuntu
+                install_command="sudo mkdir -p /etc/apt/keyrings &&
+                                curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg &&
+                                echo 'deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *' | sudo tee /etc/apt/sources.list.d/charm.list &&
+                                sudo apt update && sudo apt install $tool_name"
+            elif command -v yum &> /dev/null; then
+                # Fedora/RHEL
+                install_command="echo '[charm]
+                                name=Charm
+                                baseurl=https://repo.charm.sh/yum/
+                                enabled=1
+                                gpgcheck=1
+                                gpgkey=https://repo.charm.sh/yum/gpg.key' | sudo tee /etc/yum.repos.d/charm.repo &&
+                                sudo yum install $tool_name"
+            elif command -v apk &> /dev/null; then
+                # Alpine
+                install_command="sudo apk add $tool_name"
+            else
+                echo "Unsupported Linux distribution. Please install $tool_name manually."
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Unsupported operating system. Please install $tool_name manually."
             exit 1
-        fi
-        install_command="sudo $package_manager install -y $tool_name"
-    else
-        echo "Unsupported operating system. Please install $tool_name manually."
-        exit 1
-    fi
+            ;;
+    esac
 
     # Check if the tool is installed, and if not, install it
     if ! command -v "$tool_name" &> /dev/null; then
         echo "$tool_name not found."
 
-        # Install the tool using the determined package manager and command
-        if command -v "$package_manager" &> /dev/null; then
-            echo "Installing $tool_name with $package_manager..."
-            eval "$install_command"
-        else
-            echo "$package_manager not found. Please install it and run the script again."
-            exit 1
-        fi
+        # Install the tool using the determined command
+        echo "Installing $tool_name..."
+        eval "$install_command"
     fi
 }
 
