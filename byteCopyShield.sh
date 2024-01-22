@@ -9,16 +9,16 @@ install_tool() {
     case "$(uname)" in
         Darwin)
             # macOS (Homebrew)
-            install_command="brew install $tool_name"
+            install_command="brew install $tool_name -y"
             ;;
         Linux)
             # Linux (Various package managers)
             if command -v pacman &> /dev/null; then
                 # Arch Linux (btw)
-                install_command="sudo pacman -S $tool_name"
+                install_command="sudo pacman -S $tool_name -y"
             elif command -v nix-env &> /dev/null; then
                 # Nix
-                install_command="nix-env -iA nixpkgs.$tool_name"
+                install_command="nix-env -iA nixpkgs.$tool_name -y"
                 # Alternatively, with flakes
                 # install_command="nix run 'github:charmbracelet/$tool_name' -- --help"
             elif command -v apt &> /dev/null; then
@@ -26,7 +26,7 @@ install_tool() {
                 install_command="sudo mkdir -p /etc/apt/keyrings &&
                                 curl -fsSL https://repo.charm.sh/apt/gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/charm.gpg &&
                                 echo 'deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *' | sudo tee /etc/apt/sources.list.d/charm.list &&
-                                sudo apt update && sudo apt install $tool_name"
+                                sudo apt update && sudo apt install $tool_name  -y"
             elif command -v yum &> /dev/null; then
                 # Fedora/RHEL
                 install_command="echo '[charm]
@@ -35,10 +35,10 @@ install_tool() {
                                 enabled=1
                                 gpgcheck=1
                                 gpgkey=https://repo.charm.sh/yum/gpg.key' | sudo tee /etc/yum.repos.d/charm.repo &&
-                                sudo yum install $tool_name"
+                                sudo yum install $tool_name  -y"
             elif command -v apk &> /dev/null; then
                 # Alpine
-                install_command="sudo apk add $tool_name"
+                install_command="sudo apk add $tool_name  -y"
             else
                 echo "Unsupported Linux distribution. Please install $tool_name manually."
                 exit 1
@@ -181,7 +181,7 @@ create_zip_archive_or_folder_with_files_based_on_backup_type() {
         echo "Return to the original directory"
         cd $current_folder  || return # Return to the original directory
     elif [ "$BACKUP_TYPE" = $FILES_TITLE ]; then
-        mv "$source_folder/$TODAY_DATE-backup" "$destination_folder"
+        cp -r "$source_folder/$TODAY_DATE-backup/" "$destination_folder/$TODAY_DATE-backup"
     fi
 }
 
@@ -191,9 +191,9 @@ create_zip_archive_or_folder_with_files_based_on_backup_type
 delete_temporary_folder_for_backup() {
     if [ -d "$TEMPORARY_FOLDER_FOR_BACKUP/$TODAY_DATE-backup" ]; then
 
-        rm -rf "$TEMPORARY_FOLDER_FOR_BACKUP/$TODAY_DATE-backup"
+        rm -rf "$TEMPORARY_FOLDER_FOR_BACKUP"
     else
-        echo "Folder .byteCopyShield doesn't exist"
+        echo "Folder $TODAY_DATE-backup doesn't exist"
     fi
 }
 
@@ -205,11 +205,17 @@ get_zip_archive_size() {
     zip_file="$DESTINATION_FOLDER_FOR_BACKUP/$TODAY_DATE-backup.zip"
     if [ -f "$zip_file" ]; then
         size_in_bytes=$(du -s "$zip_file" | cut -f1)
+
+        # Function to perform floating-point division in Bash
+        calculate_size_in_mb() {
+            local result=$(printf "%.2f" "$(echo "scale=2; $size_in_bytes / 1024" | bc)")
+            echo "Size of the zip archive: ${result} MB"
+        }
+
         if [ "$size_in_bytes" -lt 1024 ]; then
             echo "Size of the zip archive: ${size_in_bytes} KB"
         else
-            size_in_mb=$(echo "scale=2; $size_in_bytes / 1024" | bc)
-            echo "Size of the zip archive: ${size_in_mb} MB"
+            calculate_size_in_mb
         fi
     else
         echo "Zip file not found: $zip_file"
